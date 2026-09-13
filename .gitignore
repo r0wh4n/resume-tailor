@@ -1,0 +1,9 @@
+.env
+.secret_key
+data.db
+data.db-shm
+data.db-wal
+.venv/
+__pycache__/
+*.pyc
+.DS_Store

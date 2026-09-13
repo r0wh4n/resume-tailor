@@ -1,0 +1,259 @@
+<!doctype html>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Resume Tailor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0b0d; --panel:#121215; --line:#232327; --line-soft:#1b1b1f;
+    --text:#ededf0; --dim:#8b8b93; --dimmer:#5f5f67; --accent:#7dd3a0; --warn:#e0a458;
+    --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+       font:400 15px/1.6 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+       -webkit-font-smoothing:antialiased}
+  .wrap{max-width:720px;margin:0 auto;padding:72px 24px 96px}
+  .eyebrow{font:500 11px/1 var(--mono);letter-spacing:.18em;text-transform:uppercase;
+           color:var(--dimmer);margin-bottom:20px}
+  h1{font-size:38px;font-weight:300;letter-spacing:-.025em;margin:0 0 10px}
+  h1 em{font-style:normal;color:var(--accent)}
+  .lede{color:var(--dim);font-size:16px;font-weight:300;margin:0 0 44px;max-width:52ch}
+  label.field{display:block;font:500 11px/1 var(--mono);letter-spacing:.12em;
+              text-transform:uppercase;color:var(--dimmer);margin:0 0 10px}
+  textarea,input[type=text]{width:100%;background:var(--panel);border:1px solid var(--line);
+    border-radius:10px;color:var(--text);font:400 14px/1.6 Inter,sans-serif;padding:15px 16px;
+    transition:border-color .15s,background .15s}
+  textarea{min-height:230px;resize:vertical}
+  textarea:focus,input[type=text]:focus{outline:none;border-color:#3a3a42;background:#151518}
+  textarea::placeholder,input::placeholder{color:var(--dimmer)}
+  .sub{color:var(--dimmer);font-size:12.5px;margin:9px 0 0}
+  .group{margin-bottom:34px}
+  .modes{display:grid;gap:9px}
+  .modes label{display:grid;grid-template-columns:16px 1fr;gap:3px 13px;align-items:start;
+    background:var(--panel);border:1px solid var(--line-soft);border-radius:10px;
+    padding:14px 16px;cursor:pointer;transition:border-color .15s,background .15s}
+  .modes label:hover{border-color:#2e2e35}
+  .modes input{accent-color:var(--accent);margin:3px 0 0;grid-row:span 2}
+  .modes b{font-size:13.5px;font-weight:500}
+  .modes span{color:var(--dim);font-size:12.5px;line-height:1.5}
+  .modes input:checked ~ b{color:var(--accent)}
+  button{width:100%;margin-top:8px;padding:15px;border:0;border-radius:10px;
+    background:var(--accent);color:#08120c;font:600 14px Inter,sans-serif;
+    letter-spacing:.01em;cursor:pointer;transition:filter .15s}
+  button:hover{filter:brightness(1.08)}
+  .drop{display:block;background:var(--panel);border:1px dashed #32323a;border-radius:12px;
+    padding:30px 22px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s}
+  .drop:hover{border-color:var(--accent);background:#151519}
+  .drop b{display:block;font-size:14.5px;font-weight:500;margin-bottom:5px}
+  .drop span{color:var(--dimmer);font-size:12.5px}
+  .drop input{display:none}
+  .loaded{display:flex;align-items:center;gap:14px;background:var(--panel);
+    border:1px solid var(--line);border-radius:10px;padding:12px 16px;margin-bottom:30px;
+    font-size:13.5px;color:var(--dim)}
+  .loaded b{color:var(--text);font-weight:500}
+  .link{width:auto;margin:0 0 0 auto;background:none;color:var(--dimmer);padding:0;
+    font:400 12.5px Inter,sans-serif;text-decoration:underline;cursor:pointer}
+  .link:hover{color:var(--text);filter:none}
+  #ld{position:fixed;inset:0;background:rgba(11,11,13,.93);backdrop-filter:blur(3px);
+      display:none;place-items:center;z-index:99;text-align:center}
+  #ld.on{display:grid}
+  .spin{width:36px;height:36px;border:2px solid #26262c;border-top-color:var(--accent);
+        border-radius:50%;animation:sp .8s linear infinite;margin:0 auto 20px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  #ld p{color:var(--text);font-size:15px;margin:0 0 7px}
+  #ld small{color:var(--dimmer);font:500 12px var(--mono);letter-spacing:.08em}
+  .topbar{display:flex;align-items:center;gap:12px;margin-bottom:20px}
+  .topbar .eyebrow{margin:0;flex:1}
+  .who{font-size:13px;color:var(--dim);display:flex;align-items:center;gap:8px}
+  .pill{font:500 10.5px var(--mono);letter-spacing:.05em;background:#1b1b20;
+    border:1px solid var(--line);color:var(--dim);padding:3px 8px;border-radius:20px}
+  .pill.paid{background:#15241a;border-color:#2c5c3d;color:var(--accent)}
+  .pill.own{background:#15241a;border-color:#2c5c3d;color:var(--accent)}
+  a.link{color:var(--dimmer);font-size:12.5px;text-decoration:underline}
+  a.link:hover{color:var(--text)}
+  a.inlink{color:#f0b4b4;font-weight:500;margin-left:6px}
+  .signin{display:flex;align-items:center;gap:18px;background:var(--panel);
+    border:1px solid var(--line);border-radius:11px;padding:16px 18px;margin-bottom:26px;flex-wrap:wrap}
+  .signin b{display:block;font-size:14px;font-weight:500;margin-bottom:3px}
+  .signin span{color:var(--dimmer);font-size:12.5px;line-height:1.55}
+  .signin div{flex:1;min-width:220px}
+  .gbtn{background:#fff;color:#1a1a1a;padding:11px 18px;border-radius:9px;
+    font:500 13.5px Inter,sans-serif;text-decoration:none;white-space:nowrap}
+  .up{width:auto;margin:0;padding:10px 18px;font-size:13px}
+  .devbox{display:flex;gap:8px;margin-bottom:24px}
+  .devbox input{flex:1} .devbox button{width:auto;margin:0;padding:10px 16px;font-size:13px}
+  .keybox{background:var(--panel);border:1px solid var(--line);border-radius:11px;
+    margin-bottom:30px;overflow:hidden}
+  .keybox summary{cursor:pointer;padding:14px 17px;font-size:13.5px;color:var(--dim);
+    list-style:none;display:flex;align-items:center;gap:9px}
+  .keybox summary::-webkit-details-marker{display:none}
+  .keybox summary b{color:var(--text);font-weight:500}
+  .dot{width:7px;height:7px;border-radius:50%;flex:none}
+  .dot.own{background:var(--accent)} .dot.shared{background:var(--warn)} .dot.none{background:#e07a7a}
+  .keybody{padding:2px 17px 17px;border-top:1px solid var(--line-soft)}
+  .keybody p{color:var(--dimmer);font-size:12.5px;line-height:1.6;margin:13px 0}
+  .keybody input{width:100%;background:#0e0e11;border:1px solid var(--line);border-radius:9px;
+    color:var(--text);font:400 13px var(--mono);padding:11px 13px}
+  .keybody input:focus{outline:none;border-color:#3a3a42}
+  .krow{display:flex;gap:9px;margin-top:10px}
+  .keybody button{width:auto;margin:0;padding:10px 18px;font-size:13px}
+  .keybody button.ghost{background:none;border:1px solid var(--line);color:var(--dim)}
+  .tiny{font-size:11.5px !important;color:var(--dimmer)}
+  .err{background:#2a1618;border:1px solid #4a2529;color:#f0b4b4;padding:13px 16px;
+       border-radius:10px;margin-bottom:28px;font-size:13.5px}
+  footer{margin-top:44px;padding-top:22px;border-top:1px solid var(--line-soft);
+         color:var(--dimmer);font-size:12.5px;line-height:1.7}
+  code{font:400 12px var(--mono);color:var(--dim);background:var(--panel);
+       padding:2px 6px;border-radius:4px}
+  @media(max-width:560px){.wrap{padding:48px 18px 72px}h1{font-size:30px}}
+</style>
+<div class="wrap">
+  <div class="topbar">
+    <span class="eyebrow">Resume Tailor</span>
+    {% if user %}
+      <span class="who">
+        {{ user.name }}
+        {% if user.plan == 'paid' %}<span class="pill paid">unlimited</span>
+        {% elif whose == 'own' %}<span class="pill own">your key</span>
+        {% else %}<span class="pill">{{ (limit - used) if limit else 0 }} free left</span>{% endif %}
+      </span>
+      <form method="post" action="/logout" style="margin:0"><button class="link" type="submit">Sign out</button></form>
+    {% elif google %}
+      <a class="link" href="/login">Sign in with Google</a>
+    {% endif %}
+  </div>
+  <h1>One resume,<br>shaped to <em>every</em> job.</h1>
+  <p class="lede">Upload your résumé once. Paste any job description and get it rewritten in that
+    posting's language, scored against it, and improved until it stops climbing.</p>
+
+  {% if error %}<div class="err">{{ error }}
+    {% if need_login and google %}<a class="inlink" href="/login">Sign in with Google &rarr;</a>{% endif %}
+    {% if upgrade and razorpay %}
+      <form method="post" action="/upgrade" style="margin-top:10px">
+        <button class="up" type="submit">Upgrade &mdash; unlimited résumés</button></form>
+    {% endif %}
+  </div>{% endif %}
+
+  {% if not user and google and not error %}
+    <div class="signin">
+      <div>
+        <b>One free résumé, no card needed.</b>
+        <span>Sign in so we can keep your résumé and count your free one.
+          Bring your own API key instead and it stays free forever.</span>
+      </div>
+      <a class="gbtn" href="/login">Sign in with Google</a>
+    </div>
+  {% endif %}
+
+  {% if dev_login and not user %}
+    <form method="post" action="/dev-login" class="devbox">
+      <input type="text" name="email" placeholder="dev@example.com">
+      <button type="submit">Dev sign-in</button>
+    </form>
+  {% endif %}
+
+  <details class="keybox" {% if whose == 'none' or need_key %}open{% endif %}>
+    <summary>
+      <span class="dot {{ whose }}"></span>
+      {% if whose == 'own' %}Using <b>your {{ 'Anthropic' if provider == 'anthropic' else 'OpenAI' }}</b> key
+      {% elif whose == 'shared' %}Using the <b>shared</b> key &mdash; daily limits apply
+      {% else %}<b>An API key is required</b>{% endif %}
+    </summary>
+    <div class="keybody">
+      <p>Your key is held in memory for this session only &mdash; never written to the database,
+        never put in a cookie, never logged. It disappears when the server restarts or you hit
+        Clear. On your own key there are no daily limits; you pay OpenAI directly.</p>
+      <form method="post" action="/key">
+        <input type="password" name="key" placeholder="sk-...  or  sk-ant-..." autocomplete="off" spellcheck="false">
+        <div class="krow">
+          <button type="submit">{{ 'Replace key' if whose == 'own' else 'Use my key' }}</button>
+          {% if whose == 'own' %}<button class="ghost" type="submit" name="key" value="">Clear</button>{% endif %}
+        </div>
+      </form>
+      <p class="tiny">Works with either provider &mdash; an <b>OpenAI</b> key
+        (platform.openai.com/api-keys) or an <b>Anthropic</b> key (console.anthropic.com).
+        Detected automatically from the prefix. Needs credit on the account; roughly 5k
+        tokens per résumé.</p>
+    </div>
+  </details>
+
+  {% if need_resume %}
+  <form method="post" action="/upload" enctype="multipart/form-data">
+    <div class="group">
+      <label class="field">Step 1 — your current résumé</label>
+      <label class="drop" for="resume">
+        <b>Choose a file</b>
+        <span id="fname">PDF, DOCX or TXT · everything claimed comes from this file</span>
+        <input type="file" id="resume" name="resume" accept=".pdf,.docx,.txt,.md,.html" required>
+      </label>
+      <p class="sub">A scanned image won't work — it needs selectable text.</p>
+    </div>
+    <button type="submit">Upload résumé</button>
+  </form>
+  <script>document.getElementById('resume').onchange=e=>{
+    document.getElementById('fname').textContent=e.target.files[0]?.name||'';}</script>
+  {% else %}
+
+  <div class="loaded">
+    <span><b>{{ session.filename }}</b> loaded</span>
+    <form method="post" action="/reset" style="margin:0"><button class="link" type="submit">Replace</button></form>
+  </div>
+
+  <form method="post" action="/tailor" onsubmit="load()">
+    <div class="group">
+      <label class="field" for="jd">Step 2 — the job description</label>
+      <textarea id="jd" name="jd" autofocus placeholder="Paste the full posting…"></textarea>
+      <p class="sub">Or a link — works on company career pages, Greenhouse and Lever.
+        LinkedIn, Naukri and Indeed block scrapers.</p>
+      <input type="text" name="url" placeholder="https://…" style="margin-top:10px">
+    </div>
+
+    <div class="group">
+      <label class="field">How far to reframe</label>
+      <div class="modes">
+        <label><input type="radio" name="mode" value="auto" checked>
+          <b>Auto</b><span>Decides from how closely the posting matches your background. Right for most jobs.</span></label>
+        <label><input type="radio" name="mode" value="pivot">
+          <b>Reframe</b><span>Different field. Describes your work in its language and drops tool names it wouldn't value.</span></label>
+        <label><input type="radio" name="mode" value="minimal">
+          <b>Career change</b><span>Little transfers. Leads with skills and projects, compresses the old role, stays short rather than padding.</span></label>
+      </div>
+    </div>
+
+    <button type="submit">Generate résumé</button>
+  </form>
+  {% endif %}
+
+  <footer>
+    <b style="color:var(--dim);font-weight:500">How this works.</b>
+    Everything claimed comes from the résumé you upload — it is reworded, never invented.
+    Anything a posting asks for that your résumé doesn't support is listed as a gap instead of
+    written into a bullet, so you are never handed a claim you can't defend in an interview.
+    <br><br>
+    <b style="color:var(--dim);font-weight:500">Your data.</b>
+    Your résumé and the job descriptions you paste are sent to OpenAI to generate and score
+    each draft. Your résumé text is stored so you don't re-upload it every time, and is deleted
+    automatically after 30 days — or immediately when you hit <b>Replace</b>. Nothing is shared
+    with anyone else and nothing is used for training here.
+  </footer>
+</div>
+
+<div id="ld"><div>
+  <div class="spin"></div>
+  <p id="ldmsg">Reading the posting</p>
+  <small id="ldsec">0s</small>
+</div></div>
+
+<script>
+var MSGS = ["Reading the posting", "Rewriting your resume",
+            "Screening it against the posting", "Scoring the result"];
+function load(){
+  document.getElementById('ld').classList.add('on');
+  var t = 0, m = 0;
+  setInterval(function(){
+    document.getElementById('ldsec').textContent = (++t) + 's';
+    if (t % 7 === 0) document.getElementById('ldmsg').textContent = MSGS[++m % MSGS.length];
+  }, 1000);
+}
+</script>

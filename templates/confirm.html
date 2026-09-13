@@ -1,0 +1,98 @@
+<!doctype html>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Confirm what you did</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0b0b0d;--panel:#121215;--line:#232327;--text:#ededf0;--dim:#8b8b93;
+        --dimmer:#5f5f67;--accent:#7dd3a0;--warn:#e0a458;
+        --mono:"JetBrains Mono",ui-monospace,Menlo,monospace}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+       font:400 15px/1.6 Inter,-apple-system,BlinkMacSystemFont,sans-serif;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:780px;margin:0 auto;padding:56px 24px 96px}
+  .eyebrow{font:500 11px/1 var(--mono);letter-spacing:.18em;text-transform:uppercase;color:var(--dimmer);margin-bottom:18px}
+  h1{font-size:30px;font-weight:300;letter-spacing:-.02em;margin:0 0 10px}
+  .lede{color:var(--dim);font-size:15px;font-weight:300;margin:0 0 10px;max-width:62ch}
+  .warnbox{background:#221a10;border:1px solid #4a3a22;color:#e6c188;border-radius:10px;
+           padding:13px 16px;font-size:13.5px;margin:22px 0 30px;line-height:1.6}
+  .item{background:var(--panel);border:1px solid var(--line);border-radius:11px;
+        padding:15px 17px;margin-bottom:11px;transition:border-color .15s,opacity .15s}
+  .item.off{opacity:.4}
+  .req{display:flex;align-items:center;gap:10px;font:500 11.5px var(--mono);
+       letter-spacing:.04em;color:var(--warn);margin-bottom:10px}
+  .req input{accent-color:var(--accent);width:15px;height:15px;flex:none;cursor:pointer}
+  .item textarea{width:100%;background:#0e0e11;border:1px solid var(--line);border-radius:8px;
+    color:var(--text);font:400 14px/1.55 Inter,sans-serif;padding:11px 13px;resize:vertical;min-height:62px}
+  .item textarea:focus{outline:none;border-color:#3a3a42}
+  .actions{display:flex;gap:10px;margin-top:26px;flex-wrap:wrap}
+  button,.btn{border:1px solid var(--line);background:transparent;color:var(--text);padding:13px 22px;
+    border-radius:10px;font:500 14px Inter,sans-serif;cursor:pointer;text-decoration:none;display:inline-block}
+  button.go{background:var(--accent);border-color:var(--accent);color:#08120c;font-weight:600}
+  .btn:hover,button:hover{filter:brightness(1.08)}
+  #ld{position:fixed;inset:0;background:rgba(11,11,13,.93);backdrop-filter:blur(3px);
+      display:none;place-items:center;z-index:99;text-align:center}
+  #ld.on{display:grid}
+  .spin{width:36px;height:36px;border:2px solid #26262c;border-top-color:var(--accent);
+        border-radius:50%;animation:sp .8s linear infinite;margin:0 auto 20px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  #ld p{color:var(--text);font-size:15px;margin:0 0 7px}
+  #ld small{color:var(--dimmer);font:500 12px var(--mono);letter-spacing:.08em}
+  @media(max-width:560px){.wrap{padding:36px 16px 72px}h1{font-size:24px}}
+</style>
+<div class="wrap">
+  <div class="eyebrow">Step 3 — confirm</div>
+  <h1>Does this match what you actually did?</h1>
+  <p class="lede">Drafted from your résumé to save you typing. Edit anything that isn't right,
+    and untick anything you haven't genuinely done.</p>
+
+  <div class="warnbox">
+    These lines go onto your résumé and you'll be asked about them in an interview.
+    Nothing here is verified — the wording is a suggestion, the truth of it is yours.
+  </div>
+
+  <form method="post" action="/add-facts" onsubmit="load()">
+    <input type="hidden" name="jd" value="{{ jd }}">
+    <input type="hidden" name="mode" value="{{ mode }}">
+    <input type="hidden" name="fix" value="1">
+    {% for d in drafts %}
+      <div class="item" id="i{{ loop.index }}">
+        <label class="req">
+          <input type="checkbox" checked onchange="tog(this,{{ loop.index }})">
+          {{ d.requirement }}
+        </label>
+        <textarea name="line" rows="2">{{ d.line }}</textarea>
+      </div>
+    {% endfor %}
+    <div class="actions">
+      <button class="go" type="submit">Add and re-score</button>
+      <a class="btn" href="/">Cancel</a>
+    </div>
+  </form>
+</div>
+
+<div id="ld">
+  <div>
+    <div class="spin"></div>
+    <p id="ldmsg">Rewriting your résumé…</p>
+    <small id="ldsec">0s</small>
+  </div>
+</div>
+
+<script>
+function tog(cb, i){
+  const box = document.getElementById('i'+i), ta = box.querySelector('textarea');
+  box.classList.toggle('off', !cb.checked);
+  ta.disabled = !cb.checked;              // disabled fields are not submitted
+}
+const MSGS = ["Rewriting your résumé…","Screening it against the posting…",
+              "Closing the gaps you confirmed…","Scoring the result…"];
+function load(){
+  const el = document.getElementById('ld'); el.classList.add('on');
+  let t = 0, m = 0;
+  setInterval(() => {
+    document.getElementById('ldsec').textContent = (++t) + 's';
+    if (t % 8 === 0) document.getElementById('ldmsg').textContent = MSGS[++m % MSGS.length];
+  }, 1000);
+}
+</script>

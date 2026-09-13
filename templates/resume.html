@@ -1,0 +1,234 @@
+<!doctype html>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{ r.name }} — Résumé</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0b0b0d;--panel:#121215;--line:#232327;--text:#ededf0;--dim:#8b8b93;
+        --dimmer:#5f5f67;--accent:#7dd3a0;--warn:#e0a458;--bad:#e07a7a;
+        --mono:"JetBrains Mono",ui-monospace,Menlo,monospace}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);
+       font:400 15px/1.6 Inter,-apple-system,BlinkMacSystemFont,sans-serif;
+       -webkit-font-smoothing:antialiased}
+  .shell{max-width:900px;margin:0 auto;padding:28px 24px 80px}
+
+  /* ---- control panel (screen only) ---- */
+  .bar{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+       padding:20px 22px;margin-bottom:26px;color:var(--text)}
+  .top{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+  .score{font:300 40px/1 Inter,sans-serif;letter-spacing:-.03em}
+  .score.hi{color:var(--accent)} .score.mid{color:var(--warn)} .score.lo{color:var(--bad)}
+  .score small{font:500 12px var(--mono);color:var(--dimmer);display:block;margin-top:7px;
+               letter-spacing:.1em;text-transform:uppercase}
+  .track{flex:1;min-width:180px;height:5px;background:#1d1d21;border-radius:3px;overflow:hidden}
+  .fill{height:100%;background:var(--accent);transition:width .5s cubic-bezier(.2,.7,.3,1)}
+  .fill.mid{background:var(--warn)} .fill.lo{background:var(--bad)}
+  .acts{display:flex;gap:9px;flex-wrap:wrap;margin-left:auto}
+  .btn{border:1px solid var(--line);background:transparent;color:var(--text);
+       padding:10px 16px;border-radius:9px;font:500 13px Inter,sans-serif;cursor:pointer;
+       text-decoration:none;display:inline-block;transition:border-color .15s,background .15s}
+  .btn:hover{border-color:#3a3a42;background:#17171b}
+  .btn.go{background:var(--accent);border-color:var(--accent);color:#08120c}
+  .btn.go:hover{filter:brightness(1.08);background:var(--accent)}
+  .btn[disabled]{opacity:.4;cursor:default}
+  .meta{margin-top:16px;padding-top:15px;border-top:1px solid #1b1b1f;
+        color:var(--dim);font-size:13px;line-height:1.65}
+  .meta b{color:var(--text);font-weight:500}
+  .tag{display:inline-block;font:500 11px var(--mono);letter-spacing:.06em;
+       background:#1b1b20;border:1px solid var(--line);color:var(--dim);
+       padding:3px 9px;border-radius:20px;margin:3px 4px 0 0}
+  .tag.gap,.tag.half{cursor:pointer;font-family:var(--mono);user-select:none;
+    transition:border-color .15s,background .15s,color .15s}
+  .tag input{display:none}
+  .tag.gap{border-color:#4a3a22;color:var(--warn);background:#221a10}
+  .tag.gap:hover{border-color:var(--warn);background:#2b2114}
+  .tag.gap:has(input:checked){background:var(--warn);color:#1a1206;border-color:var(--warn)}
+  .tag.half{border-color:#2e3a4a;color:#8fb4d9;background:#151d26}
+  .tag.half:hover{border-color:#8fb4d9;background:#1b2733}
+  .tag.half:has(input:checked){background:#8fb4d9;color:#0b1520;border-color:#8fb4d9}
+  .key{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px;vertical-align:baseline}
+  .key.gap{background:var(--warn)} .key.half{background:#8fb4d9}
+  #claimf input[type=text]{width:100%;background:#0e0e11;border:1px solid var(--line);
+    border-radius:9px;color:var(--text);font:400 13.5px Inter,sans-serif;padding:11px 13px}
+  #claimf input[type=text]:focus{outline:none;border-color:#3a3a42}
+  .field{display:block;font:500 11px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--dimmer)}
+  details{margin-top:13px} summary{cursor:pointer;color:var(--dim);font-size:13px}
+  details ul{margin:9px 0 0;padding-left:18px;color:var(--dim);font-size:13px;line-height:1.65}
+  #ld{position:fixed;inset:0;background:rgba(11,11,13,.93);backdrop-filter:blur(3px);
+      display:none;place-items:center;z-index:99;text-align:center}
+  #ld.on{display:grid}
+  .spin{width:36px;height:36px;border:2px solid #26262c;border-top-color:var(--accent);
+        border-radius:50%;animation:sp .8s linear infinite;margin:0 auto 20px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  #ld p{color:var(--text);font-size:15px;margin:0 0 7px}
+  #ld small{color:var(--dimmer);font:500 12px var(--mono);letter-spacing:.08em}
+  .fine{color:var(--dimmer);font-size:12.5px;margin:-8px 0 16px;text-align:center}
+  @media print{.fine{display:none}}
+  .hist{font:500 11px var(--mono);color:var(--dimmer);letter-spacing:.08em}
+
+  /* ---- the résumé itself: light, print-exact ---- */
+  .paper{background:#fff;color:#111;border-radius:14px;padding:44px 52px;
+         font:10.5pt/1.45 Georgia,"Times New Roman",serif}
+  .paper header{text-align:center;border-bottom:1.5px solid #111;padding-bottom:8px;margin-bottom:12px}
+  .paper h1{font-size:21pt;margin:0;letter-spacing:.5px;font-weight:700}
+  .role{font-size:11pt;color:#333;margin-top:3px}
+  .contact{font-size:9pt;color:#333;margin-top:5px}
+  .paper h2{font-size:10pt;text-transform:uppercase;letter-spacing:1.2px;
+            border-bottom:1px solid #999;padding-bottom:2px;margin:13px 0 7px;font-weight:700}
+  .row{display:flex;justify-content:space-between;font-weight:bold;gap:16px}
+  .row .dates{font-weight:normal;font-style:italic;font-size:9.5pt;white-space:nowrap}
+  .co{font-style:italic;font-size:9.5pt;margin-bottom:3px;color:#333}
+  .paper ul{margin:0 0 9px;padding-left:17px} .paper li{margin-bottom:3px}
+  .sk{font-size:9.5pt;margin:0 0 4px} .sk b{font-variant:small-caps}
+
+  @media print{
+    body{background:#fff} .shell{padding:0;max-width:none}
+    .bar{display:none} .paper{border-radius:0;padding:0}
+    @page{size:A4;margin:13mm}
+  }
+  @media(max-width:640px){.shell{padding:18px 14px 60px}.paper{padding:28px 24px}.acts{margin-left:0;width:100%}}
+</style>
+<div class="shell">
+
+  {% set band = 'hi' if r.score >= 75 else ('mid' if r.score >= 45 else 'lo') %}
+  <div class="bar">
+    <div class="top">
+      <div class="score {{ band }}">{{ r.score }}%<small>requirements met</small></div>
+      <div class="track"><div class="fill {{ band }}" style="width:{{ r.score }}%"></div></div>
+      <div class="acts">
+        <form method="post" action="/tailor" style="display:inline" onsubmit="load('Improving your resume')">
+          <input type="hidden" name="jd" value="{{ r.jd }}">
+          <input type="hidden" name="mode" value="{{ r.mode }}">
+          <input type="hidden" name="fix" value="1">
+          <button class="btn go" type="submit" {{ 'disabled' if r.fixed and r.score >= 95 }}>
+            {% if r.fixed %}Improve again{% else %}Fix my résumé →{% endif %}
+          </button>
+        </form>
+        <button class="btn" onclick="window.print()">Save as PDF</button>
+        <a class="btn" href="/">New JD</a>
+      </div>
+    </div>
+
+    <div class="meta">
+      {% if r.history|length > 1 %}
+        <span class="hist">PASSES {{ r.history|join(' → ') }}%</span> &nbsp;
+      {% endif %}
+      {% if r.score >= 95 %}<b>Strong match.</b> This résumé covers what the posting asks for.
+      {% elif r.fixed %}<b>{{ r.score }}% is the ceiling for your current facts.</b>
+        The passes stopped climbing — the terms below aren't in <code>facts.md</code> in any
+        form, so no rewording reaches them. If you have actually done any of them, add it to
+        <code>facts.md</code> and the score moves for real.
+      {% elif r.score >= 75 %}<b>Good match.</b> Hit <b>Fix</b> to push the remaining terms.
+      {% elif r.score >= 45 %}<b>Partial match.</b> Fix will climb, but the gaps below are real experience you don't have.
+      {% else %}<b>Weak match.</b> Your facts don't reach this role — Fix can only go so far.{% endif %}
+      {% if r.ceiling < 40 %}
+        <br>Ceiling from <code>facts.md</code> is about <b>{{ r.ceiling }}%</b> for this posting — a different field, so no wording closes it.
+      {% endif %}
+      {% if r.remaining is not none and r.whose != 'own' %}
+        <span class="tag">{{ r.remaining }} free left</span>{% endif %}
+      {% if r.whose == 'own' %}<span class="tag">your {{ 'Anthropic' if r.provider == 'anthropic' else 'OpenAI' }} key</span>{% endif %}
+      {% if r.pivot %}<span class="tag">reframed</span>{% endif %}
+      {% if r.minimal %}<span class="tag">career change</span>{% endif %}
+
+      {% if r.gaps or r.weak %}
+        <form method="post" action="/draft-facts" id="pick" onsubmit="load('Drafting the wording')">
+          <input type="hidden" name="jd" value="{{ r.jd }}">
+          <input type="hidden" name="mode" value="{{ r.mode }}">
+          <div style="margin-top:12px">Tick everything here you have actually done &mdash; the
+            wording gets drafted for you to check:
+            <div style="margin-top:8px">
+            {% for g in r.gaps %}
+              <label class="tag gap"><input type="checkbox" name="req" value="{{ g }}">{{ g }}</label>
+            {% endfor %}
+            {% for w in r.weak %}
+              <label class="tag half" title="{{ w.evidence }}"><input type="checkbox" name="req" value="{{ w.requirement }}">{{ w.requirement }}</label>
+            {% endfor %}
+            </div>
+            <p style="margin:9px 0 0;color:var(--dimmer);font-size:12px">
+              <span class="key gap"></span> no evidence &nbsp;
+              <span class="key half"></span> half credit &mdash; naming it explicitly is the cheapest point</p>
+            <button class="btn go" type="submit" id="pickbtn" style="margin-top:12px;width:auto" disabled>
+              Draft wording for <span id="n">0</span> selected
+            </button>
+          </div>
+        </form>
+      {% endif %}
+
+      {% if r.weak %}
+        <details><summary>why the half credits</summary>
+          <ul>{% for w in r.weak %}<li><b>{{ w.requirement }}</b> — {{ w.evidence }}</li>{% endfor %}</ul></details>
+      {% endif %}
+      {% if r.notes %}
+        <details><summary>{{ r.notes|length }} requirement{{ 's' if r.notes|length != 1 }} your facts don't back — check before sending</summary>
+          <ul>{% for n in r.notes %}<li>{{ n }}</li>{% endfor %}</ul></details>
+      {% endif %}
+    </div>
+  </div>
+
+  <p class="fine">Check every line before you send it. Generated from your own résumé, but
+    the wording is new — you should be able to defend all of it.</p>
+
+  <div class="paper">
+    <header>
+      <h1>{{ r.name }}</h1>
+      {% if r.title %}<div class="role">{{ r.title }}</div>{% endif %}
+      <div class="contact">{{ r.email }} · {{ r.phone }} · {{ r.location }}{% for l in r.links %} · {{ l }}{% endfor %}</div>
+    </header>
+
+    {% if r.summary %}<h2>Professional Summary</h2><p style="margin:0">{{ r.summary }}</p>{% endif %}
+
+    {% if r.skills %}<h2>Technical Skills</h2>
+    {% for c in r.skills %}<p class="sk"><b>{{ c.category }}:</b> {{ c['items']|join(' | ') }}</p>{% endfor %}{% endif %}
+
+    {% set exp %}
+      {% if r.experience %}<h2>Professional Experience</h2>
+      {% for j in r.experience %}
+        <div class="row"><span>{{ j.title }}</span><span class="dates">{{ j.dates }}</span></div>
+        <div class="co">{{ j.company }}{% if j.location %} — {{ j.location }}{% endif %}</div>
+        <ul>{% for b in j.bullets %}<li>{{ b }}</li>{% endfor %}</ul>
+      {% endfor %}{% endif %}
+    {% endset %}
+    {% set proj %}
+      {% if r.projects %}<h2>Projects</h2>
+      {% for p in r.projects %}<div class="row"><span>{{ p.name }}</span></div>
+      <ul>{% for b in p.bullets %}<li>{{ b }}</li>{% endfor %}</ul>{% endfor %}{% endif %}
+    {% endset %}
+    {% if r.minimal %}{{ proj }}{{ exp }}{% else %}{{ exp }}{{ proj }}{% endif %}
+
+    {% if r.education %}<h2>Education</h2>
+    {% for e in r.education %}<div class="row"><span>{{ e.degree }}</span><span class="dates">{{ e.dates }}</span></div>
+    <div class="co">{{ e.school }}</div>{% endfor %}{% endif %}
+
+    {% if r.certifications %}<h2>Certifications</h2><p class="sk">{{ r.certifications|join(' · ') }}</p>{% endif %}
+  </div>
+</div>
+
+<div id="ld"><div>
+  <div class="spin"></div>
+  <p id="ldmsg">Working</p>
+  <small id="ldsec">0s</small>
+  <small id="ldhint" style="display:block;margin-top:14px;max-width:300px;line-height:1.6">
+    Several passes against the posting &mdash; up to about ninety seconds.</small>
+</div></div>
+
+<script>
+document.querySelectorAll('#pick input[name=req]').forEach(function(b){
+  b.addEventListener('change', function(){
+    var n = document.querySelectorAll('#pick input[name=req]:checked').length;
+    document.getElementById('n').textContent = n;
+    document.getElementById('pickbtn').disabled = (n === 0);
+  });
+});
+var MSGS = ["Reading the posting", "Rewriting your resume",
+            "Screening it requirement by requirement", "Closing the gaps", "Scoring the result"];
+function load(first){
+  document.getElementById('ld').classList.add('on');
+  document.getElementById('ldmsg').textContent = first || MSGS[0];
+  var t = 0, m = 0;
+  setInterval(function(){
+    document.getElementById('ldsec').textContent = (++t) + 's';
+    if (t % 8 === 0) document.getElementById('ldmsg').textContent = MSGS[++m % MSGS.length];
+  }, 1000);
+}
+</script>

@@ -1,0 +1,6 @@
+flask>=3.0
+openai>=2.0
+anthropic>=0.70
+markitdown[pdf,docx,pptx,xlsx]>=0.1.7
+gunicorn>=22.0
+psycopg[binary]>=3.2
