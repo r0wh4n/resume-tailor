@@ -82,7 +82,8 @@ def run(sql, args=(), fetch=None):
     """One query. SQL is written with '?' and translated for Postgres."""
     if PG:
         sql = sql.replace("?", "%s")
-    with connect() as c:
+    c = connect()
+    try:
         cur = c.cursor()
         cur.execute(sql, args)
         if fetch == "one":
@@ -90,17 +91,25 @@ def run(sql, args=(), fetch=None):
             return dict(row) if row else None
         if fetch == "all":
             return [dict(r) for r in cur.fetchall()]
+        if not PG:
+            c.commit()
         return None
+    finally:
+        c.close()
 
 
 def init():
-    with connect() as c:
+    c = connect()
+    try:
         if PG:
             with c.cursor() as cur:
                 for stmt in filter(str.strip, DDL.split(";")):
                     cur.execute(stmt)
         else:
             c.executescript(DDL)
+            c.commit()
+    finally:
+        c.close()
 
 
 # ---------------------------------------------------------------- accounts

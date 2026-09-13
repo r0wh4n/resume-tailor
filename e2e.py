@@ -82,6 +82,11 @@ check("unsigned payment webhook is rejected",
       requests.post(f"{BASE}/webhook/razorpay", data=b'{}', timeout=30).status_code == 400)
 
 # ---------------------------------------------------------------- onboarding
+section("Platform")
+_h = requests.get(f"{BASE}/healthz", timeout=30)
+check("health check reports ready", _h.status_code == 200 and _h.json().get("ok"),
+      f"db={_h.json().get('db')}")
+
 section("Onboarding")
 s = requests.Session()
 r = s.get(BASE, timeout=30)

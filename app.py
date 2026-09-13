@@ -824,6 +824,16 @@ def reset():
     return redirect(url_for("index"))
 
 
+@app.get("/healthz")
+def healthz():
+    """Liveness for the platform: checks the app answers and the database is reachable."""
+    try:
+        store.run("SELECT 1 AS ok", (), "one")
+    except Exception as e:
+        return {"ok": False, "db": f"{type(e).__name__}"}, 503
+    return {"ok": True, "db": "postgres" if store.PG else "sqlite"}, 200
+
+
 @app.get("/")
 def index():
     _, whose, provider = active_key()

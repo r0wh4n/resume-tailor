@@ -1,0 +1,71 @@
+# Render Blueprint - https://render.com/docs/blueprint-spec
+#
+# Deploy: Render dashboard -> New -> Blueprint -> pick this repo.
+# Everything marked sync:false is prompted for at deploy time and never lives in git.
+
+databases:
+  - name: resume-tailor-db
+    databaseName: resume_tailor
+    plan: free            # free Postgres expires after 30 days - upgrade or use Supabase
+    postgresMajorVersion: "16"
+
+services:
+  - type: web
+    name: resume-tailor
+    runtime: python
+    plan: starter         # free tier cold-starts ~50s after idling; starter does not
+    region: singapore     # closest Render region to India
+    branch: main
+    buildCommand: pip install -r requirements.txt
+    # One worker with threads: the work is API-latency-bound, not CPU-bound.
+    # Timeout is generous because an improve run is ~20-30s of upstream calls.
+    startCommand: gunicorn -b 0.0.0.0:$PORT -w 1 --threads 8 --timeout 300 app:app
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12"
+
+      # Storage. Wired automatically from the database above.
+      - key: DATABASE_URL
+        fromDatabase:
+          name: resume-tailor-db
+          property: connectionString
+
+      # Signs session cookies. Generated once and kept across deploys - without a
+      # stable value every redeploy signs every user out.
+      - key: SECRET_KEY
+        generateValue: true
+
+      # Marks the session cookie Secure. Render terminates TLS for you.
+      - key: HTTPS
+        value: "1"
+
+      # --- secrets: entered in the Render dashboard, never in git -------------
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: RAZORPAY_WEBHOOK_SECRET
+        sync: false
+
+      # --- product settings ---------------------------------------------------
+      - key: OPENAI_MODEL
+        value: gpt-5.4-mini
+      - key: FREE_RESUMES
+        value: "1"
+      - key: PLAN_DAYS
+        value: "30"
+      - key: PLAN_AMOUNT_PAISE
+        value: "29900"
+      - key: SESSION_TTL_DAYS
+        value: "30"
+
+      # DEV_LOGIN is deliberately absent. Setting it in production would let anyone
+      # sign in as any email without a password.
