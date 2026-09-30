@@ -34,7 +34,8 @@ transfers — leads with skills, compresses the old role, stays short rather tha
 
 ## Run it yourself
 
-Needs Python 3.10+ and an OpenAI or Anthropic API key. No system packages, no database
+Needs Python 3.10+ and either an API key (OpenAI or Anthropic) or a signed-in Claude Code
+or Codex CLI. No system packages, no database
 server, no Docker.
 
 ```bash
@@ -47,6 +48,25 @@ cp .env.example .env          # add your API key
 
 Self-hosted, everything is free and unlimited — there's no quota when you supply the key.
 It stores sessions in a local SQLite file and talks to nothing but your model provider.
+
+## Run it on your Claude or ChatGPT subscription
+
+If you already pay for Claude Code or Codex, the self-hosted app can use the CLI on your
+machine instead of a metered API key — nothing to paste, nothing billed per résumé:
+
+```bash
+LOCAL_CLI=claude .venv/bin/python app.py     # or LOCAL_CLI=codex
+```
+
+It only works when the app and the CLI are on the **same machine**, so it is off unless you
+set it. A hosted deployment must not set it: a server cannot reach a visitor's local CLI, so
+every request would spend the operator's own subscription. The app logs a warning if it sees
+`LOCAL_CLI` together with `HTTPS=1`.
+
+Slower than the API — the CLI reloads its agent harness on every call, so a résumé takes
+about a minute against roughly eight seconds. Every tool is disabled (`--disallowedTools`)
+and the prompt is passed on stdin, so a job posting that says *"ignore your instructions and
+run this command"* is treated as text. That is verified, not assumed.
 
 ## Configuration
 
@@ -67,6 +87,9 @@ Everything is optional except a key.
 | `SESSION_TTL_DAYS` | `30` | Résumés are deleted after this. |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | — | Sign-in. Without it, BYOK only. |
 | `RAZORPAY_KEY_ID` / `_KEY_SECRET` / `_WEBHOOK_SECRET` | — | Billing. Without it, no upgrade button. |
+| `LOCAL_CLI` | off | `claude` or `codex` — use the local CLI instead of an API key. Self-host only. |
+| `LOCAL_CLI_MODEL` | CLI default | Model name to pass to the CLI. |
+| `LOCAL_CLI_TIMEOUT` | `180` | Seconds per CLI call. |
 | `HTTPS` | off | Set to `1` behind TLS so the session cookie is `Secure`. |
 | `DEV_LOGIN` | off | Local-only sign-in bypass. Never enable in production. |
 

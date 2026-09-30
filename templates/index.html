@@ -90,7 +90,7 @@
   .keybox summary::-webkit-details-marker{display:none}
   .keybox summary b{color:var(--text);font-weight:500}
   .dot{width:7px;height:7px;border-radius:50%;flex:none}
-  .dot.own{background:var(--accent)} .dot.shared{background:var(--warn)} .dot.none{background:#e07a7a}
+  .dot.own,.dot.local{background:var(--accent)} .dot.shared{background:var(--warn)} .dot.none{background:#e07a7a}
   .keybody{padding:2px 17px 17px;border-top:1px solid var(--line-soft)}
   .keybody p{color:var(--dimmer);font-size:12.5px;line-height:1.6;margin:13px 0}
   .keybody input{width:100%;background:#0e0e11;border:1px solid var(--line);border-radius:9px;
@@ -156,11 +156,15 @@
   <details class="keybox" {% if whose == 'none' or need_key %}open{% endif %}>
     <summary>
       <span class="dot {{ whose }}"></span>
-      {% if whose == 'own' %}Using <b>your {{ 'Anthropic' if provider == 'anthropic' else 'OpenAI' }}</b> key
+      {% if whose == 'local' %}Using your local <b>{{ provider }}</b> subscription &mdash; no key needed
+      {% elif whose == 'own' %}Using <b>your {{ 'Anthropic' if provider == 'anthropic' else 'OpenAI' }}</b> key
       {% elif whose == 'shared' %}Using the <b>shared</b> key &mdash; daily limits apply
       {% else %}<b>An API key is required</b>{% endif %}
     </summary>
     <div class="keybody">
+      {% if whose == 'local' %}<p>This install is signed in through the <b>{{ provider }}</b> CLI
+        on this machine, so nothing is metered and no key is required. Paste one below only
+        if you want to use an API account instead.</p>{% endif %}
       <p>Your key is held in memory for this session only &mdash; never written to the database,
         never put in a cookie, never logged. It disappears when the server restarts or you hit
         Clear. On your own key there are no daily limits; you pay OpenAI directly.</p>

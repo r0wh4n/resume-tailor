@@ -14,6 +14,7 @@ from pathlib import Path
 from flask import Flask, request, render_template, session, redirect, url_for
 
 import auth
+import localcli
 import store
 
 HERE = Path(__file__).parent
@@ -144,6 +145,13 @@ def chat(system, user, schema, name, model=None):
     key, _, provider = active_key()
     if not key:
         raise NeedKey()
+    if key == "local-cli":
+        # The caller's model hint names an API model (gpt-5.4-mini); the CLI has its
+        # own names and rejects it. Let the CLI use its default unless told otherwise.
+        data, usage = localcli.chat(system, user, schema,
+                                    os.environ.get("LOCAL_CLI_MODEL") or None)
+        USAGE.update(usage)
+        return data
     if provider == "anthropic":
         return _anthropic(key, system, user, schema, model)
     return _openai(key, system, user, schema, name, model)
@@ -261,6 +269,13 @@ def chat(system, user, schema, name, model=None):
     key, _, provider = active_key()
     if not key:
         raise NeedKey()
+    if key == "local-cli":
+        # The caller's model hint names an API model (gpt-5.4-mini); the CLI has its
+        # own names and rejects it. Let the CLI use its default unless told otherwise.
+        data, usage = localcli.chat(system, user, schema,
+                                    os.environ.get("LOCAL_CLI_MODEL") or None)
+        USAGE.update(usage)
+        return data
     if provider == "anthropic":
         return _anthropic(key, system, user, schema, model)
     return _openai(key, system, user, schema, name, model)
@@ -571,6 +586,12 @@ def _secret():
 
 
 app.secret_key = _secret()
+
+if localcli.available() and os.environ.get("HTTPS", "").lower() in ("1", "true", "yes"):
+    app.logger.warning(
+        "LOCAL_CLI=%s is set on what looks like a hosted deployment. A server cannot "
+        "reach a visitor's local CLI, so every request would spend YOUR subscription. "
+        "Unset LOCAL_CLI unless this is your own machine.", localcli.CLI)
 app.config["MAX_CONTENT_LENGTH"] = 4 * 1024 * 1024        # 4 MB: no resume is bigger
 app.config["PERMANENT_SESSION_LIFETIME"] = 60 * 60 * 24 * 30
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"             # survives the OAuth redirect back
@@ -604,10 +625,16 @@ def provider_of(key):
 
 
 def active_key():
-    """(key, whose, provider) for this request."""
+    """(key, whose, provider) for this request.
+
+    A pasted key always wins - someone who brought their own expects it to be used.
+    Otherwise a local CLI, if this deployment enabled one, then the shared key.
+    """
     own = KEYS.get(session.get("sid"))
     if own:
         return own, "own", provider_of(own)
+    if localcli.available():
+        return "local-cli", "local", localcli.CLI
     if SERVER_KEY and not BYOK_ONLY:
         return SERVER_KEY, "shared", provider_of(SERVER_KEY)
     return None, "none", None
@@ -677,7 +704,7 @@ def draft_facts():
         return render_template("index.html", need_key=True, whose=whose,
                                error="Add an API key first.")
     user = me()
-    ok, used, limit, reason = store.quota(user, own_key=(whose == "own"))
+    ok, used, limit, reason = store.quota(user, own_key=(whose in ("own", "local")))
     if not ok:
         return render_template("index.html", whose=whose, user=user, used=used, limit=limit,
                                upgrade=(reason == "upgrade"), need_login=(reason == "sign-in"),
@@ -838,7 +865,7 @@ def healthz():
 def index():
     _, whose, provider = active_key()
     user = me()
-    ok, used, limit, _ = store.quota(user, own_key=(whose == "own"))
+    ok, used, limit, _ = store.quota(user, own_key=(whose in ("own", "local")))
     ctx = dict(whose=whose, provider=provider, user=user, used=used, limit=limit,
                can_generate=ok, google=auth.google_enabled, razorpay=auth.razorpay_enabled,
                dev_login=DEV_LOGIN)
@@ -874,7 +901,7 @@ def do_tailor():
         return render_template("index.html", whose=whose, need_key=True,
                                error="Add an API key to generate a résumé.")
     user = me()
-    ok, used, limit, reason = store.quota(user, own_key=(whose == "own"))
+    ok, used, limit, reason = store.quota(user, own_key=(whose in ("own", "local")))
     if not ok:
         return render_template("index.html", whose=whose, user=user, used=used, limit=limit,
                                upgrade=(reason == "upgrade"), need_login=(reason == "sign-in"),
