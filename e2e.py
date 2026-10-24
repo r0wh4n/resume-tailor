@@ -69,8 +69,14 @@ anon = requests.Session()
 anon.get(BASE, timeout=30)
 with open(RESUME, "rb") as fh:
     anon.post(f"{BASE}/upload", files={"resume": ("r.pdf", fh.read(), "application/pdf")}, timeout=60)
-r = anon.post(f"{BASE}/tailor", data={"jd": IN_FIELD}, timeout=60)
-check("anonymous visitor cannot generate", "Sign in to generate" in r.text)
+# A local-CLI install meters nothing, so it deliberately does not gate on sign-in.
+LOCAL = "subscription &mdash; no key needed" in anon.get(BASE, timeout=30).text
+r = anon.post(f"{BASE}/tailor", data={"jd": IN_FIELD}, timeout=600)
+if LOCAL:
+    check("local-CLI install needs no account", "Sign in to generate" not in r.text,
+          "unmetered, so no quota gate")
+else:
+    check("anonymous visitor cannot generate", "Sign in to generate" in r.text)
 _dev = requests.post(f"{BASE}/dev-login", data={"email": "x@y.com"},
                      timeout=30, allow_redirects=False)
 check("dev login is gated by DEV_LOGIN", _dev.status_code in (302, 403),
@@ -147,6 +153,11 @@ if gaps:
     check("ticking chips drafts the wording", len(drafts) == len(picks),
           f"{len(drafts)} lines for {len(picks)} ticked")
     check("drafts are editable and pre-ticked", r.text.count('type="checkbox" checked') == len(picks))
+    check("every ticked requirement gets its own draft",
+          len(drafts) == len(picks) and all(d.strip() for d in drafts)
+          and len(set(drafts)) == len(drafts),
+          f"{sum(1 for d in drafts if not d.strip())} empty, "
+          f"{len(drafts) - len(set(drafts))} duplicated")
     check("drafts invent no metrics", not any(re.search(r"\d+\s*%|\b\d{2,}\b", d) for d in drafts),
           (drafts[0][:60] + "...") if drafts else "")
     check("confirm screen warns the user owns the truth", "truth of it is yours" in r.text)

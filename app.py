@@ -366,12 +366,15 @@ def ai_tailor(facts, jd, model=None, pivot=False, minimal=False, gaps=None, draf
                 RESUME_SCHEMA, "resume", model)
 
 
+# Keyed by the number we sent, not by echoing the requirement text back: the model
+# paraphrases or truncates that text, and matching on it silently produced empty drafts.
 DRAFT_SCHEMA = {
     "type": "object", "additionalProperties": False, "required": ["lines"],
     "properties": {"lines": {"type": "array", "items": {
         "type": "object", "additionalProperties": False,
-        "required": ["requirement", "line"],
-        "properties": {"requirement": {"type": "string"}, "line": {"type": "string"}}}}},
+        "required": ["n", "line"],
+        "properties": {"n": {"type": "integer"},
+                       "line": {"type": "string"}}}}},
 }
 
 DRAFT = """The candidate has ticked requirements from a job description that they say they
@@ -385,16 +388,43 @@ requirement and nothing more.
 Hard rules: no metrics, percentages, durations, team sizes or employer names unless they
 already appear in the RESUME. No superlatives. One sentence, past tense, 12-25 words, the
 concrete thing that was done. These drafts are shown to the candidate to correct before
-anything is used - your job is to save them typing, not to decide what is true."""
+anything is used - your job is to save them typing, not to decide what is true.
+
+Return one entry per numbered requirement, with "n" set to that requirement's number and
+"line" never empty. Every number must appear exactly once."""
+
+
+def _ask_drafts(facts, numbered):
+    """One pass. Schema is bound to the exact count so a short reply is invalid."""
+    schema = json.loads(json.dumps(DRAFT_SCHEMA))
+    schema["properties"]["lines"]["minItems"] = len(numbered)
+    schema["properties"]["lines"]["maxItems"] = len(numbered)
+    out = chat(DRAFT,
+               f"RESUME:\n{facts}\n\n---\n\nREQUIREMENTS:\n" +
+               "\n".join(f"{n}. {q}" for n, q in numbered),
+               schema, "drafts")["lines"]
+    got = {}
+    for d in out:
+        n, line = d.get("n"), (d.get("line") or "").strip()
+        if line and isinstance(n, int):
+            got.setdefault(n, line)
+    return got
 
 
 def draft_lines(facts, reqs):
-    out = chat(DRAFT,
-               f"RESUME:\n{facts}\n\n---\n\nREQUIREMENTS:\n" +
-               "\n".join(f"- {q}" for q in reqs),
-               DRAFT_SCHEMA, "drafts")["lines"]
-    got = {d["requirement"]: d["line"] for d in out}
-    return [{"requirement": q, "line": got.get(q, "")} for q in reqs]
+    """A drafted line for every ticked requirement, keyed by its number.
+
+    Never guesses an alignment: an entry the model skips is asked for again by number,
+    and anything still missing comes back blank for the user to write. Filling a box
+    with another requirement's sentence is worse than leaving it empty.
+    """
+    numbered = list(enumerate(reqs, 1))
+    got = _ask_drafts(facts, numbered)
+    missing = [(n, q) for n, q in numbered if n not in got]
+    if missing:
+        app.logger.info("drafts: retrying %d missing of %d", len(missing), len(numbered))
+        got.update(_ask_drafts(facts, missing))
+    return [{"requirement": q, "line": got.get(n, "")} for n, q in numbered]
 
 
 def resume_text(r):
@@ -432,16 +462,26 @@ domains. For each, judge whether the RESUME evidences it:
   partial - adjacent or implied, but a screener would want to ask about it.
   no      - the resume shows nothing that evidences this.
 
+The RESUME has been rewritten to target this job, and for a career change it is written
+in the target field's vocabulary on purpose. Judge the underlying work, not the words
+chosen to describe it: a requirement counts only if the SOURCE below actually shows the
+candidate doing it. A line that renames identity administration as "employee lifecycle
+management" does not become HR experience, and scoring it as such is the failure to
+avoid - the candidate would be caught in the first screening call.
+
 Quote the resume wording in "evidence" for yes and partial. Be strict: do not credit a
 requirement because the resume sounds generally impressive. Equally, do not mark something
 "no" merely because the resume used a different word for the same work."""
 
 
-def judge(resume_str, jd, model=None):
+def judge(resume_str, jd, source="", model=None):
     """LLM screen: coverage per requirement. Far better than keyword overlap, which
     penalises a correct resume for naming the same work differently."""
-    reqs = chat(JUDGE, f"JOB DESCRIPTION:\n{jd}\n\n---\n\nRESUME:\n{resume_str}",
-                JUDGE_SCHEMA, "screen", model or JUDGE_MODEL)["requirements"]
+    body = f"JOB DESCRIPTION:\n{jd}\n\n---\n\nRESUME:\n{resume_str}"
+    if source:
+        body += (f"\n\n---\n\nSOURCE (the candidate's original resume - the only evidence "
+                 f"that counts):\n{source}")
+    reqs = chat(JUDGE, body, JUDGE_SCHEMA, "screen", model or JUDGE_MODEL)["requirements"]
     if not reqs:
         return 0, [], []
     pts = sum({"yes": 1.0, "partial": 0.5}.get(q["covered"], 0.0) for q in reqs)
@@ -492,7 +532,7 @@ def tailor_best(facts, jd, pivot, minimal, target=95, tries=4):
     feedback = []
     for _ in range(tries):
         r = ai_tailor(facts, jd, pivot=pivot, minimal=minimal, gaps=feedback, draft=best)
-        score, gaps, weak = judge(resume_text(r), jd)
+        score, gaps, weak = judge(resume_text(r), jd, facts)
         history.append(score)
         if score > best_score:
             best, best_score, best_gaps, best_weak = r, score, gaps, weak
@@ -866,7 +906,7 @@ def do_tailor():
             r = tailor_best(facts, jd, pivot, minimal)
         else:
             r = ai_tailor(facts, jd, pivot=pivot, minimal=minimal)
-            r["score"], r["gaps"], r["weak"] = judge(resume_text(r), jd)
+            r["score"], r["gaps"], r["weak"] = judge(resume_text(r), jd, facts)
             r["history"] = [r["score"]]
     except NeedKey:
         return render_template("index.html", need_key=True,
