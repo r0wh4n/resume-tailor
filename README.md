@@ -63,10 +63,18 @@ set it. A hosted deployment must not set it: a server cannot reach a visitor's l
 every request would spend the operator's own subscription. The app logs a warning if it sees
 `LOCAL_CLI` together with `HTTPS=1`.
 
-Slower than the API — the CLI reloads its agent harness on every call, so a résumé takes
-about a minute against roughly eight seconds. Every tool is disabled (`--disallowedTools`)
-and the prompt is passed on stdin, so a job posting that says *"ignore your instructions and
-run this command"* is treated as text. That is verified, not assumed.
+A résumé takes about 18 seconds this way, against roughly eight on the API. Getting there
+needed three things, all handled for you: extended thinking is switched off (by default the
+CLI spent 13,810 thinking tokens and **135 seconds** emitting one JSON object), MCP servers
+and skills are skipped so no configured server's tools load on every call, and the writing
+runs on Haiku while the scoring runs on Sonnet — Haiku writes well but grades a
+career-change résumé far too generously (55% where it should be 19%).
+
+Every tool is disabled (`--disallowedTools`) and the prompt is passed on stdin, so a job
+posting saying *"ignore your instructions and run this command"* is treated as text. That is
+verified against a hostile posting, not assumed. The CLI also has no server-side schema
+enforcement, so a poor-fit posting can make it answer in prose; the prompt forbids that and
+a failed parse retries once.
 
 ## Configuration
 
@@ -88,8 +96,9 @@ Everything is optional except a key.
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | — | Sign-in. Without it, BYOK only. |
 | `RAZORPAY_KEY_ID` / `_KEY_SECRET` / `_WEBHOOK_SECRET` | — | Billing. Without it, no upgrade button. |
 | `LOCAL_CLI` | off | `claude` or `codex` — use the local CLI instead of an API key. Self-host only. |
-| `LOCAL_CLI_MODEL` | CLI default | Model name to pass to the CLI. |
-| `LOCAL_CLI_TIMEOUT` | `180` | Seconds per CLI call. |
+| `LOCAL_CLI_MODEL` | `claude-haiku-4-5` | Model that writes the résumé. |
+| `LOCAL_CLI_JUDGE_MODEL` | `claude-sonnet-4-5` | Model that scores it. Keep this stronger than the writer. |
+| `LOCAL_CLI_TIMEOUT` | `120` | Seconds per CLI call. |
 | `HTTPS` | off | Set to `1` behind TLS so the session cookie is `Secure`. |
 | `DEV_LOGIN` | off | Local-only sign-in bypass. Never enable in production. |
 

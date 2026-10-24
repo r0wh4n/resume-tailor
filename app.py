@@ -138,54 +138,6 @@ ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-opus-5")
 
 
 
-def chat(system, user, schema, name, model=None):
-    """Every model call goes through here, so provider selection, key handling and
-    token accounting each happen in exactly one place. Both providers are asked for
-    schema-constrained JSON, so callers never see the difference."""
-    key, _, provider = active_key()
-    if not key:
-        raise NeedKey()
-    if key == "local-cli":
-        # The caller's model hint names an API model (gpt-5.4-mini); the CLI has its
-        # own names and rejects it. Let the CLI use its default unless told otherwise.
-        data, usage = localcli.chat(system, user, schema,
-                                    os.environ.get("LOCAL_CLI_MODEL") or None)
-        USAGE.update(usage)
-        return data
-    if provider == "anthropic":
-        return _anthropic(key, system, user, schema, model)
-    return _openai(key, system, user, schema, name, model)
-
-
-def _openai(key, system, user, schema, name, model):
-    from openai import OpenAI
-    r = OpenAI(api_key=key).chat.completions.create(
-        model=model or MODEL,
-        response_format={"type": "json_schema",
-                         "json_schema": {"name": name, "strict": True, "schema": schema}},
-        messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
-    )
-    if r.usage:
-        USAGE.update(calls=1, tok_in=r.usage.prompt_tokens, tok_out=r.usage.completion_tokens)
-    return json.loads(r.choices[0].message.content)
-
-
-def _anthropic(key, system, user, schema, model):
-    """output_config.format guarantees the first content block is valid JSON for the schema."""
-    import anthropic
-    r = anthropic.Anthropic(api_key=key).messages.create(
-        model=model if model and model.startswith("claude") else ANTHROPIC_MODEL,
-        max_tokens=16000,
-        system=system,
-        messages=[{"role": "user", "content": user}],
-        output_config={"format": {"type": "json_schema", "schema": schema},
-                       "effort": os.environ.get("ANTHROPIC_EFFORT", "low")},
-    )
-    if r.usage:
-        USAGE.update(calls=1, tok_in=r.usage.input_tokens, tok_out=r.usage.output_tokens)
-    return json.loads(next(b.text for b in r.content if b.type == "text"))
-
-
 RESUME_SCHEMA = {
     "type": "object", "additionalProperties": False,
     "required": ["name", "title", "email", "phone", "location", "links", "summary",
@@ -272,8 +224,9 @@ def chat(system, user, schema, name, model=None):
     if key == "local-cli":
         # The caller's model hint names an API model (gpt-5.4-mini); the CLI has its
         # own names and rejects it. Let the CLI use its default unless told otherwise.
-        data, usage = localcli.chat(system, user, schema,
-                                    os.environ.get("LOCAL_CLI_MODEL") or None)
+        data, usage = localcli.chat(
+            system, user, schema,
+            localcli.JUDGE_MODEL if name == "screen" else localcli.MODEL)
         USAGE.update(usage)
         return data
     if provider == "anthropic":
