@@ -385,9 +385,15 @@ systems, scale and context so the line reads as part of the same career, not a g
 template. Where the resume says nothing relevant, write the plainest honest form of the
 requirement and nothing more.
 
+Name the specific tools and technologies the requirement itself names - if it says
+"Service mesh (Istio)", the line says Istio, because Istio is what the candidate is
+claiming. A line that answers that requirement with "service mesh" in general does not
+evidence it and leaves the gap open, which defeats the point. Do not add tools the
+requirement does not name and the resume does not show.
+
 Hard rules: no metrics, percentages, durations, team sizes or employer names unless they
-already appear in the RESUME. No superlatives. One sentence, past tense, 12-25 words, the
-concrete thing that was done. These drafts are shown to the candidate to correct before
+already appear in the RESUME or the requirement. No superlatives. One sentence, past
+tense, 12-25 words, the concrete thing that was done. These drafts are shown to the candidate to correct before
 anything is used - your job is to save them typing, not to decide what is true.
 
 Return one entry per numbered requirement, with "n" set to that requirement's number and

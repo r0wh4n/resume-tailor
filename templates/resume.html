@@ -63,6 +63,20 @@
   @keyframes sp{to{transform:rotate(360deg)}}
   #ld p{color:var(--text);font-size:15px;margin:0 0 7px}
   #ld small{color:var(--dimmer);font:500 12px var(--mono);letter-spacing:.08em}
+  .editbar{display:flex;align-items:center;gap:10px;margin:-6px 0 12px;flex-wrap:wrap}
+  .hint{color:var(--dimmer);font-size:12.5px}
+  .saved{color:var(--accent);font:500 11px var(--mono);letter-spacing:.08em;
+         opacity:0;transition:opacity .25s}
+  .saved.on{opacity:1}
+  .mini{border:1px solid var(--line);background:transparent;color:var(--dim);
+        padding:5px 11px;border-radius:7px;font:400 12px Inter,sans-serif;cursor:pointer}
+  .mini:hover{border-color:#3a3a42;color:var(--text)}
+  /* the editing affordance: only while the pointer is over it, so the page still
+     reads as a document rather than a form */
+  #paper:hover{box-shadow:0 0 0 1px #2a2a31}
+  #paper:focus{outline:none}
+  #paper *::selection{background:#cfe9d8}
+  @media print{.editbar{display:none}#paper{box-shadow:none}}
   .fine{color:var(--dimmer);font-size:12.5px;margin:-8px 0 16px;text-align:center}
   @media print{.fine{display:none}}
   .hist{font:500 11px var(--mono);color:var(--dimmer);letter-spacing:.08em}
@@ -166,10 +180,17 @@
     </div>
   </div>
 
-  <p class="fine">Check every line before you send it. Generated from your own résumé, but
-    the wording is new — you should be able to defend all of it.</p>
+  <div class="editbar">
+    <span class="hint">Click any line to edit it &mdash; your changes print and are kept
+      until you generate again.</span>
+    <span class="saved" id="saved" hidden>saved</span>
+    <button class="mini" type="button" id="undo" hidden>Undo my edits</button>
+  </div>
 
-  <div class="paper">
+  <p class="fine">Check every line before you send it. Generated from your own résumé, but
+    the wording is new &mdash; you should be able to defend all of it.</p>
+
+  <div class="paper" id="paper" contenteditable="true" spellcheck="true">
     <header>
       <h1>{{ r.name }}</h1>
       {% if r.title %}<div class="role">{{ r.title }}</div>{% endif %}
@@ -231,4 +252,48 @@ function load(first){
     if (t % 8 === 0) document.getElementById('ldmsg').textContent = MSGS[++m % MSGS.length];
   }, 1000);
 }
+
+// Hand edits live in sessionStorage against this résumé's own text, so they survive a
+// reload and a print dialog but are not resurrected onto a differently generated
+// résumé later. ponytail: no endpoint, no table - the edits only matter to this tab.
+(function () {
+  var paper = document.getElementById('paper');
+  if (!paper) return;
+  var KEY = 'rt-edit:' + (document.querySelector('input[name=jd]') || {}).value;
+  var pristine = paper.innerHTML;
+  var saved = document.getElementById('saved');
+  var undo = document.getElementById('undo');
+
+  function show() { undo.hidden = (paper.innerHTML === pristine); }
+
+  try {
+    var stored = sessionStorage.getItem(KEY);
+    if (stored && stored !== pristine) { paper.innerHTML = stored; show(); }
+  } catch (e) { /* private window: editing still works, it just will not persist */ }
+
+  var t;
+  paper.addEventListener('input', function () {
+    clearTimeout(t);
+    t = setTimeout(function () {
+      try { sessionStorage.setItem(KEY, paper.innerHTML); } catch (e) {}
+      saved.classList.add('on');
+      setTimeout(function () { saved.classList.remove('on'); }, 1200);
+      show();
+    }, 600);
+  });
+
+  undo.addEventListener('click', function () {
+    paper.innerHTML = pristine;
+    try { sessionStorage.removeItem(KEY); } catch (e) {}
+    show();
+  });
+
+  // Paste as plain text: pasting from another document otherwise drags its fonts and
+  // colours into a résumé that is about to be printed.
+  paper.addEventListener('paste', function (e) {
+    e.preventDefault();
+    var txt = (e.clipboardData || window.clipboardData).getData('text/plain');
+    document.execCommand('insertText', false, txt);
+  });
+})();
 </script>

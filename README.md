@@ -28,6 +28,10 @@ Whatever it can't evidence comes back as clickable chips. Tick the ones you've a
 done, and it drafts the wording for you — grounded in your own résumé, no invented metrics
 — for you to correct before anything is used.
 
+The finished résumé is **directly editable** — click any line and type. Edits persist
+across a reload, paste is forced to plain text so another document's fonts don't follow it
+in, and **Undo my edits** restores the generated version. What you see is what prints.
+
 Three reframing modes: **Auto** (most jobs), **Reframe** (different field — describes your
 work in its language and drops tool names it wouldn't value), **Career change** (little
 transfers — leads with skills, compresses the old role, stays short rather than padding).

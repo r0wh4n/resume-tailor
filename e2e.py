@@ -134,7 +134,9 @@ out_score = score_of(r.text)
 check("out-of-field JD scores low", out_score is not None and out_score < 60, f"{out_score}%")
 check("auto-pivot engaged", "reframed" in r.text or "career change" in r.text)
 check("honesty log present", "don&#39;t back" in r.text or "don't back" in r.text)
-check("in-field beats out-of-field", (in_score or 0) > (out_score or 100),
+# `or` coalescing broke here once a legitimate 0% became possible: 0 or 100 == 100.
+check("in-field beats out-of-field",
+      in_score is not None and out_score is not None and in_score > out_score,
       f"{in_score}% vs {out_score}%")
 
 section("Gap capture")
@@ -165,10 +167,17 @@ if gaps:
     r = s.post(f"{BASE}/add-facts", timeout=900,
                data=[("line", d) for d in drafts] + [("jd", STRETCH), ("mode", "auto"), ("fix", "1")])
     after, gaps_after = score_of(r.text), gaps_of(r.text)
-    check("confirmed lines raise the score", (after or 0) > (stretch_score or 100),
+    check("confirmed lines raise the score",
+          after is not None and stretch_score is not None and after > stretch_score,
           f"{stretch_score}% -> {after}%")
-    check("claimed requirements are closed", len(gaps_after) < len(gaps),
-          f"{len(gaps)} -> {len(gaps_after)} open")
+    # Claiming appends to the user's facts, but /add-facts then runs the full improve
+    # loop: the writer regenerates under bullet caps, so a newly claimed line is not
+    # guaranteed to reach the rendered text the screener grades. The score rising is the
+    # hard guarantee (checked above); closing gaps is best-effort, so require progress
+    # rather than perfection or this flaps between runs.
+    closed = [q for q in picks if q not in gaps_after]
+    check("claiming closes gaps", len(closed) >= 1,
+          f"{len(closed)}/{len(picks)} of the claimed requirements closed")
 
 section("Improve loop")
 r = s.post(f"{BASE}/tailor", data={"jd": STRETCH, "mode": "auto", "fix": "1"}, timeout=900)
@@ -183,6 +192,12 @@ for mode, marker in (("pivot", "reframed"), ("minimal", "career change")):
 section("Loader")
 for page, name in ((s.get(BASE, timeout=30).text, "index"), (r.text, "resume")):
     check(f"{name} shows a loader on submit", 'id="ld"' in page and "onsubmit=" in page)
+
+section("Manual editing")
+check("résumé is hand-editable", 'id="paper" contenteditable="true"' in r.text)
+check("edits persist and can be undone", 'sessionStorage' in r.text and 'id="undo"' in r.text)
+check("paste is forced to plain text", "insertText" in r.text)
+check("editing chrome is hidden in print", ".editbar{display:none}" in r.text)
 
 section("Print + privacy")
 check("print CSS hides the control panel", "@media print" in r.text and ".bar{display:none}" in r.text)
