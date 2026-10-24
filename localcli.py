@@ -32,10 +32,16 @@ MODEL = os.environ.get("LOCAL_CLI_MODEL", "claude-haiku-4-5")
 # resume far too generously, so the screening pass gets a stronger model by default.
 JUDGE_MODEL = os.environ.get("LOCAL_CLI_JUDGE_MODEL", "claude-sonnet-4-5")
 
-# Claude Code exposes these; naming them explicitly is what keeps an injected
-# "run this command" in a job posting from being anything but text.
+# An ALLOWLIST naming nothing real is what keeps an injected "run this command" in a job
+# posting from being anything but text. A denylist only covers the tools you thought to
+# name: one that was not on the list got reached for, consumed the single turn, and the
+# call died with stop_reason "tool_use". The denylist is kept as a second layer.
+ALLOW_NOTHING = "NoToolsPermitted"
 NO_TOOLS = ["Bash", "Read", "Write", "Edit", "NotebookEdit", "WebFetch", "WebSearch",
             "Glob", "Grep", "Task", "TodoWrite"]
+# Room to recover: if the model does attempt a tool, the attempt is refused and it still
+# has turns left to answer, instead of the run ending there.
+MAX_TURNS = "3"
 
 FENCE = re.compile(r"^\s*```(?:json)?\s*|\s*```\s*$", re.M)
 
@@ -116,10 +122,11 @@ def chat(system, user, schema, model=None, _retry=True):
         with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
             json.dump({"mcpServers": {}}, f)
             mcp = f.name
-        argv = ["claude", "-p", "--output-format", "json", "--max-turns", "1",
+        argv = ["claude", "-p", "--output-format", "json", "--max-turns", MAX_TURNS,
                 "--strict-mcp-config", "--mcp-config", mcp,
                 "--disable-slash-commands",
                 "--model", model or MODEL,
+                "--allowedTools", ALLOW_NOTHING,
                 "--disallowedTools", *NO_TOOLS]
         try:
             env = json.loads(_run(argv, prompt))
