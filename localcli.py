@@ -22,6 +22,7 @@ import os
 import re
 import shutil
 import subprocess
+import time
 
 CLI = os.environ.get("LOCAL_CLI", "").strip().lower()
 TIMEOUT = int(os.environ.get("LOCAL_CLI_TIMEOUT", 120))
@@ -66,13 +67,25 @@ def _json_from(text):
     raise ValueError(f"{CLI} did not return JSON: {text[:200]}")
 
 
-def _run(argv, prompt):
-    p = subprocess.run(argv, input=prompt, capture_output=True, text=True,
-                       timeout=TIMEOUT, shell=False, env={**os.environ, **FAST_ENV})
-    if p.returncode != 0:
-        raise RuntimeError(f"{argv[0]} exited {p.returncode}: "
-                           f"{(p.stderr or p.stdout or '')[:300]}")
-    return p.stdout
+def _run(argv, prompt, attempts=2):
+    """Subprocess, with one retry. Spawning a whole CLI per call is less reliable than
+    an HTTP request - an occasional timeout or non-zero exit is normal and costs the
+    user a failed résumé otherwise."""
+    last = None
+    for i in range(attempts):
+        try:
+            p = subprocess.run(argv, input=prompt, capture_output=True, text=True,
+                               timeout=TIMEOUT, shell=False,
+                               env={**os.environ, **FAST_ENV})
+            if p.returncode == 0:
+                return p.stdout
+            last = RuntimeError(f"{argv[0]} exited {p.returncode}: "
+                                f"{(p.stderr or p.stdout or '')[:300]}")
+        except subprocess.TimeoutExpired:
+            last = RuntimeError(f"{argv[0]} timed out after {TIMEOUT}s")
+        if i + 1 < attempts:
+            time.sleep(1)
+    raise last
 
 
 # The API providers enforce the schema server-side; the CLI does not, so the model is
