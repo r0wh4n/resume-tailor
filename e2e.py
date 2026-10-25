@@ -199,6 +199,22 @@ check("edits persist and can be undone", 'sessionStorage' in r.text and 'id="und
 check("paste is forced to plain text", "insertText" in r.text)
 check("editing chrome is hidden in print", ".editbar{display:none}" in r.text)
 
+section("Edits persist")
+EDIT = ("Rebuilt the deployment approval flow so every production release needs sign-off "
+        "from two independent reviewers before it ships.")
+_sv = s.post(f"{BASE}/save-edits", data={"line": EDIT}, timeout=60)
+check("hand edits are saved", _sv.status_code == 200 and _sv.json().get("saved") == 1)
+_sv2 = requests.post(f"{BASE}/save-edits", data={"line": EDIT}, timeout=60)
+check("saving needs an uploaded résumé", _sv2.status_code == 400)
+
+EDIT_JD = ("DevSecOps Engineer. Release approval workflows requiring independent peer "
+           "sign-off before production deploys. CI/CD security. Kubernetes hardening.")
+r = s.post(f"{BASE}/tailor", data={"jd": EDIT_JD, "mode": "auto"}, timeout=600)
+_gaps = " | ".join(gaps_of(r.text)).lower()
+check("a saved edit is used by later runs",
+      "sign-off" not in _gaps and "approval" not in _gaps and "peer" not in _gaps,
+      f"score {score_of(r.text)}%, {len(gaps_of(r.text))} gaps")
+
 section("Print + privacy")
 check("print CSS hides the control panel", "@media print" in r.text and ".bar{display:none}" in r.text)
 check("data handling disclosed", "Your data" in s.get(BASE, timeout=30).text)

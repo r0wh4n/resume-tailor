@@ -32,6 +32,11 @@ The finished résumé is **directly editable** — click any line and type. Edit
 across a reload, paste is forced to plain text so another document's fonts don't follow it
 in, and **Undo my edits** restores the generated version. What you see is what prints.
 
+**Keep my edits for next time** writes the lines you rewrote back into your stored
+résumé, so later runs build on them. Only the changed lines are kept, never the whole
+rendered page: the screener grounds itself in your original résumé, and writing
+posting-tailored prose back into it would let reframed wording count as its own evidence.
+
 Three reframing modes: **Auto** (most jobs), **Reframe** (different field — describes your
 work in its language and drops tool names it wouldn't value), **Career change** (little
 transfers — leads with skills, compresses the old role, stays short rather than padding).

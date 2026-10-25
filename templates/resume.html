@@ -71,6 +71,9 @@
   .mini{border:1px solid var(--line);background:transparent;color:var(--dim);
         padding:5px 11px;border-radius:7px;font:400 12px Inter,sans-serif;cursor:pointer}
   .mini:hover{border-color:#3a3a42;color:var(--text)}
+  .mini.keep{border-color:#2c5c3d;color:var(--accent)}
+  .mini.keep:hover{background:#15241a}
+  .mini[disabled]{opacity:.5;cursor:default}
   /* the editing affordance: only while the pointer is over it, so the page still
      reads as a document rather than a form */
   #paper:hover{box-shadow:0 0 0 1px #2a2a31}
@@ -184,6 +187,7 @@
     <span class="hint">Click any line to edit it &mdash; your changes print and are kept
       until you generate again.</span>
     <span class="saved" id="saved" hidden>saved</span>
+    <button class="mini keep" type="button" id="keep" hidden>Keep my edits for next time</button>
     <button class="mini" type="button" id="undo" hidden>Undo my edits</button>
   </div>
 
@@ -264,7 +268,31 @@ function load(first){
   var saved = document.getElementById('saved');
   var undo = document.getElementById('undo');
 
-  function show() { undo.hidden = (paper.innerHTML === pristine); }
+  var keep = document.getElementById('keep');
+
+  // Block-level text, so a diff is line-for-line rather than a soup of HTML.
+  function blocks(root) {
+    return Array.prototype.map.call(
+      root.querySelectorAll('li, p, h1, h2, .role, .row span, .co'),
+      function (el) { return el.textContent.replace(/\s+/g, ' ').trim(); });
+  }
+  var before = blocks(paper);
+
+  function changed() {
+    var now = blocks(paper), out = [];
+    for (var i = 0; i < now.length; i++) {
+      // Only lines that existed and were rewritten, and only real sentences - a tweaked
+      // heading or a one-word fix is not a fact worth storing.
+      if (now[i] && now[i] !== before[i] && now[i].split(' ').length >= 4) out.push(now[i]);
+    }
+    return out;
+  }
+
+  function show() {
+    var dirty = paper.innerHTML !== pristine;
+    undo.hidden = !dirty;
+    keep.hidden = !dirty || changed().length === 0;
+  }
 
   try {
     var stored = sessionStorage.getItem(KEY);
@@ -280,6 +308,25 @@ function load(first){
       setTimeout(function () { saved.classList.remove('on'); }, 1200);
       show();
     }, 600);
+  });
+
+  keep.addEventListener('click', function () {
+    var lines = changed();
+    if (!lines.length) return;
+    keep.disabled = true;
+    keep.textContent = 'Saving…';
+    var body = new URLSearchParams();
+    lines.forEach(function (l) { body.append('line', l); });
+    fetch('/save-edits', {method: 'POST', body: body})
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        keep.textContent = d.ok ? 'Kept ' + d.saved + ' line' + (d.saved === 1 ? '' : 's')
+                                : 'Could not save';
+        before = blocks(paper);           // saved lines are the new baseline
+        setTimeout(function () { keep.hidden = true; keep.disabled = false;
+                                 keep.textContent = 'Keep my edits for next time'; }, 2500);
+      })
+      .catch(function () { keep.textContent = 'Could not save'; keep.disabled = false; });
   });
 
   undo.addEventListener('click', function () {

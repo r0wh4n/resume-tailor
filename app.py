@@ -720,6 +720,24 @@ def draft_facts():
                            mode=request.form.get("mode", "auto"))
 
 
+@app.post("/save-edits")
+def save_edits():
+    """Lines the user rewrote by hand, kept as facts for later runs.
+
+    Only the changed lines, never the whole rendered résumé: the screener grounds itself
+    in the original résumé, so writing JD-tailored prose back into it would let reframed
+    wording count as its own evidence.
+    """
+    sid = session.get("sid")
+    if not store.get_facts(sid):
+        return {"ok": False, "error": "no resume"}, 400
+    lines = [l.strip()[:400] for l in request.form.getlist("line") if l.strip()][:25]
+    for line in lines:
+        store.append_fact(sid, line)
+    store.record(sid, "edit", uid=session.get("uid"))
+    return {"ok": True, "saved": len(lines)}, 200
+
+
 @app.post("/add-facts")
 def add_facts():
     """Confirmed lines land in the user's facts, then the resume is rebuilt."""
